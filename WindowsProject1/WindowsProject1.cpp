@@ -186,7 +186,7 @@ void CALLBACK OnTimer(HWND hWnd, UINT nMsg, UINT_PTR nIDEvent, DWORD dwTime) {
 			if (direction == -1) option = WICBitmapTransformRotate0;
 
 			std::wstring s_path = L"";
-			s_path = L"picture/cat" + std::to_wstring(animation_number) + L".png";
+			s_path = L"img/cat" + std::to_wstring(animation_number) + L".png";
 			const wchar_t* path = s_path.c_str();
 			LoadMyImage(gp_render_target, path, option);
 
@@ -268,7 +268,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		g_image_rect.right = (float)r.right;
 		g_image_rect.bottom = (float)r.bottom;
 
-		LoadMyImage(gp_render_target, L"picture/cat1.png", WICBitmapTransformRotate0);
+		LoadMyImage(gp_render_target, L"img/cat1.png", WICBitmapTransformRotate0);
 		return 0;
 	} else if (uMsg == WM_DESTROY) {
 
