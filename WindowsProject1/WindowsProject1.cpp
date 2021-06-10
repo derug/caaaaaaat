@@ -4,6 +4,7 @@
 #include <d2d1.h>
 #include <Wincodec.h>
 
+#include <string>
 #include <cstdlib>
 #include <ctime>
 
@@ -22,11 +23,19 @@ D2D1_RECT_F g_image_rect;
 
 POINT pre_cursor;
 bool mouse_clicked = false;
-bool is_moving = false;
-bool on_ground = false;
 
-int moving_direction = 1;
+bool is_falling = false;
+bool is_jumping = false;
+bool on_ground = false;
+bool is_working = true;
+
+int motion = 0;
+
+int direction = 1;
+int animation_number = 0;
+
 int moving_frame = 0;
+int falling_frame = 0;
 
 int vx=0, vy=0; 
 
@@ -99,49 +108,90 @@ void CALLBACK OnTimer(HWND hWnd, UINT nMsg, UINT_PTR nIDEvent, DWORD dwTime) {
 			RECT r;
 			GetWindowRect(hWnd, &r);
 
+			if (vy <= 0 && !is_jumping) {
+				is_jumping = true;
+				animation_number = 22;
+			}
+			if (vy > 0 && !is_falling) {
+				is_falling = true;
+				falling_frame = 0;
+				animation_number = 4;
+			}
+
 			if (WndSize.bottom >= r.bottom + vy) SetWindowPos(hWnd, HWND_TOPMOST, r.left + vx, r.top + vy, 0, 0, SWP_NOSIZE);
 			else {
 				SetWindowPos(hWnd, HWND_TOPMOST, r.left, WndSize.bottom - r.bottom + r.top, 0, 0, SWP_NOSIZE);
-				if (!on_ground) {
-					LoadMyImage(gp_render_target, L"picture/cat_06.png", WICBitmapTransformRotate0);
-					InvalidateRect(hWnd, NULL, TRUE);
-					on_ground = true;
-				}
+				on_ground = true;
 			}
 			
-			if (WndSize.left > r.left + vx || WndSize.right < r.right + vx) vx *= -1;
-			if(vy < 30) vy += 1;
+			if (WndSize.left > r.left + vx || WndSize.right < r.right + vx) { vx *= -1, direction *= -1; }
+			if(vy < 10) vy += 1;
+
+			if (on_ground) {
+				if (falling_frame == 0) animation_number = 18;
+				if (falling_frame == 15) animation_number = 19;
+				if (falling_frame == 30) animation_number = 1;
+				if (falling_frame++ == 35) is_working = false;
+			}
+
+			if (!is_working) {
+				if (motion == 1) {
+					if (moving_frame % 100 == 0) animation_number = 1;
+					if (moving_frame % 100 == 25) animation_number = 2;
+					if (moving_frame % 100 == 50) animation_number = 3;
+					if (moving_frame % 100 == 75) animation_number = 2;
+
+					if (r.left + direction < WndSize.left) direction = 1;
+					if (r.right + direction > WndSize.right) direction = -1;
+
+					SetWindowPos(hWnd, HWND_TOPMOST, r.left + direction, r.top, 0, 0, SWP_NOSIZE);
+					if (++moving_frame == 300) { animation_number = 1;  motion = 0; }
+				}
+				if (motion == 2) {
+					if (moving_frame % 100 == 0) animation_number = 20;
+					if (moving_frame % 100 == 75) animation_number = 21;
+
+					if (r.left + direction < WndSize.left) direction = 1;
+					if (r.right + direction > WndSize.right) direction = -1;
+
+					if(moving_frame % 100 < 50) SetWindowPos(hWnd, HWND_TOPMOST, r.left + 2*direction, r.top, 0, 0, SWP_NOSIZE);
+					if (++moving_frame == 300) { animation_number = 1;  motion = 0; }
+				}
+				if (motion == 3) {
+					if (moving_frame % 100 == 0) animation_number = 15;
+					if (moving_frame % 100 == 40) animation_number = 16;
+					if (moving_frame % 100 == 80) animation_number = 17;
+
+					if (++moving_frame == 300) { animation_number = 1;  motion = 0; }
+				}
+			}
 		}
 	}
 	if (nIDEvent == 2) {
-		if (is_moving&&!mouse_clicked) {
-			RECT r;
-			GetWindowRect(hWnd, &r);
-
-			if (moving_frame % 25 == 0) {
-				enum WICBitmapTransformOptions option;
-				if (moving_direction == 1) option = WICBitmapTransformFlipHorizontal;
-				if (moving_direction == -1) option = WICBitmapTransformRotate0;
-
-				if (moving_frame % 100 == 0) LoadMyImage(gp_render_target, L"picture/cat_01.png", option);
-				if (moving_frame % 100 == 25) LoadMyImage(gp_render_target, L"picture/cat_02.png", option);
-				if (moving_frame % 100 == 50) LoadMyImage(gp_render_target, L"picture/cat_03.png", option);
-				if (moving_frame % 100 == 75) LoadMyImage(gp_render_target, L"picture/cat_02.png", option);
-				InvalidateRect(hWnd, NULL, TRUE);
-			}
-			if (r.left + moving_direction < WndSize.left) moving_direction = 1;
-			if (r.right + moving_direction > WndSize.right) moving_direction = -1;
-			SetWindowPos(hWnd, HWND_TOPMOST, r.left + moving_direction, r.top, 0, 0, SWP_NOSIZE);
-			if(moving_frame++ == 300) is_moving = false;
+		if (!mouse_clicked && !is_working) {
+			moving_frame = 0;
+			srand(time(0));
+			if (rand() % 2 == 0) direction = 1;
+			else direction = -1;
+			int num = rand() % 10;
+			if (num < 6) motion = 1;
+			else if (num < 8) motion = 2;
+			else if (num < 9) motion = 3;
 		}
 	}
 	if (nIDEvent == 3) {
-		if (!is_moving) {
-			srand(time(0));
-			if (rand() % 2 == 0) moving_direction = 1;
-			else moving_direction = -1;
-			moving_frame = 0;
-			is_moving = true;
+		if (animation_number) {
+			enum WICBitmapTransformOptions option;
+			if (direction == 1) option = WICBitmapTransformFlipHorizontal;
+			if (direction == -1) option = WICBitmapTransformRotate0;
+
+			std::wstring s_path = L"";
+			s_path = L"picture/cat" + std::to_wstring(animation_number) + L".png";
+			const wchar_t* path = s_path.c_str();
+			LoadMyImage(gp_render_target, path, option);
+
+			animation_number = 0;
+			InvalidateRect(hWnd, NULL, TRUE);
 		}
 	}
 }
@@ -153,11 +203,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		GetCursorPos(&pre_cursor);
 		SetCapture(hWnd);
 		mouse_clicked = true;
+		is_falling = false;
+		is_jumping = false;
 		on_ground = false;
+		is_working = true;
+		motion = 0;
+
 	} else if (uMsg == WM_LBUTTONUP) {
 
+		if (vx > 0) direction = 1;
+		if (vx < 0) direction = -1;
+		if (abs(vx) > 20) vx = 20 * direction;
+
 		mouse_clicked = false;
-		is_moving = false;
 		ReleaseCapture();
 	} else if (uMsg == WM_MOUSEMOVE) {
 
@@ -165,8 +223,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			POINT temp_cursor;
 			GetCursorPos(&temp_cursor);
 
-			vx = (temp_cursor.x - pre_cursor.x)/2;
-			vy = (temp_cursor.y - pre_cursor.y)*1.5;
+			vx = (vx+(temp_cursor.x - pre_cursor.x)/2)/2;
+			vy = (vy+(temp_cursor.y - pre_cursor.y)*1.5)/2;
+
+			if (10 < vx) animation_number = 9;
+			else if (5 < vx) animation_number = 7;
+			else if (0 < vx) animation_number = 5;
+			else if (vx == 0) animation_number = 1;
+			else if(-5 < vx) animation_number = 6;
+			else if(-10 < vx) animation_number = 8;
+			else animation_number = 10;
 			
 			RECT r;
 			GetWindowRect(hWnd, &r);
@@ -185,12 +251,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		gp_render_target->EndDraw();
 		return 0;
 	} else if (uMsg == WM_CREATE) {
-
 		SystemParametersInfoA(SPI_GETWORKAREA, 0, &WndSize, 0);
 
 		SetTimer(hWnd, 1, 10, OnTimer);
-		SetTimer(hWnd, 2, 10, OnTimer);
-		SetTimer(hWnd, 3, 10000, OnTimer);
+		SetTimer(hWnd, 2, 10000, OnTimer);
+		SetTimer(hWnd, 3, 10, OnTimer);
 
 		RECT r;
 		GetClientRect(hWnd, &r);
@@ -203,7 +268,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		g_image_rect.right = (float)r.right;
 		g_image_rect.bottom = (float)r.bottom;
 
-		LoadMyImage(gp_render_target, L"picture/cat_01.png", WICBitmapTransformRotate0);
+		LoadMyImage(gp_render_target, L"picture/cat1.png", WICBitmapTransformRotate0);
 		return 0;
 	} else if (uMsg == WM_DESTROY) {
 
@@ -223,11 +288,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPreInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
 	D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &gp_factory);
 
 	WNDCLASS wc;
-	wchar_t m_class_name[] = L"test";
+	wchar_t m_class_name[] = L"cat";
 
 	wc.cbClsExtra = NULL;
 	wc.cbWndExtra = NULL;
@@ -241,13 +307,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPreInstance, LPSTR lpCmdLine,
 	wc.style = CS_HREDRAW | CS_VREDRAW;
 
 	RegisterClass(&wc);
-	/*
-	HWND hWnd = CreateWindow(m_class_name, L"picture",
-		WS_OVERLAPPEDWINDOW, 100, 90, 128, 128, NULL, NULL, hInstance, NULL);
-	SetWindowLong(hWnd, GWL_STYLE, (GetWindowLong(hWnd, GWL_STYLE)&(~WS_OVERLAPPEDWINDOW)|WS_POPUP));
-	*/
-	HWND hWnd = CreateWindow(m_class_name, L"picture",
-		WS_EX_LAYERED | WS_POPUP, 100, 90, 100, 100, NULL, NULL, hInstance, NULL);
+	
+	HWND hWnd = CreateWindow(m_class_name, L"cat",
+		WS_EX_LAYERED | WS_POPUP, 400, -200, 128, 128, NULL, NULL, hInstance, NULL);
 	SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
 	SetLayeredWindowAttributes(hWnd, RGB(254, 254, 254), 255, LWA_COLORKEY);
 	
