@@ -147,13 +147,6 @@
   <ItemGroup>
     <ClCompile Include="WindowsProject1.cpp" />
   </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="WindowsProject1.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="small.ico" />
-    <Image Include="WindowsProject1.ico" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
